@@ -15,7 +15,7 @@ data = bigjson.load(fin2)
 # see how long it takes to access each key
 
 # causes delay
-# shuffle in case we decide to run baseline over smaller set
+# shuffle in case we decide to run baseline over smaller set (takes too long)
 #random.shuffle(key_list)
 
 print ("accessing keys")
