@@ -28,7 +28,8 @@ def exp_0():
 # EXPERIMENT 1
 # replicate exit node parts of first paragraph of section 5.3 
 # (number of exit nodes, countries, ASes, days)
-# RESULT: numbers didn't match up, looks like there is an extra day of data corresponding with section 5.4 maybe?
+# RESULT: 420,329 (compared to 403,355 in paper) ids, 177 (177) countries, 9,306 (8,842) ASes, 14 (13) days
+# numbers didn't match up, looks like there is an extra day of data corresponding with section 5.4 maybe?
 # use experiment 2 to figure this out
 def exp_1(scenario):
 
@@ -54,7 +55,7 @@ def exp_1(scenario):
 
 # EXPERIMENT 3
 # count unique resolvers, resolvers with DO bit set
-# RUNNING
+# RESULT: 61,593 (59,513) resolvers, 51,268 (49,424) resolvers with DO bit set 
 def exp_3(scenario):
 
 	resolvers = set()
