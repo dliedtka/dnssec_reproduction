@@ -63,17 +63,10 @@ def exp_3(scenario):
 	if "zones-requested" in scenario.keys():
 		for zone in scenario["zones-requested"].keys():
 			for rec_type in scenario["zones-requested"][zone].keys():
-				#try:
 				for entry in scenario["zones-requested"][zone][rec_type]:
 					resolvers.add(entry[0])
 					if entry[1]:
 						do_resolvers.add(entry[0])
-				#except:
-				#	print ("failed here")
-			    #	print (rec_type)
-				#	print (scenario)
-				#	import sys
-				#	sys.exit()
 
 	return (resolvers, do_resolvers)
 
