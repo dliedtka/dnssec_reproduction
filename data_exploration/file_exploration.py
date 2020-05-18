@@ -25,9 +25,11 @@ def exp_0():
 	return
 
 
-# first experiment, replicate first paragraph of section 5.3 
-# (number of exit nodes, countries, ASes, days, resolvers, resolvers with DO bit set)
-# still need to add resolver functionality
+# EXPERIMENT 1
+# replicate exit node parts of first paragraph of section 5.3 
+# (number of exit nodes, countries, ASes, days)
+# RESULT: numbers didn't match up, looks like there is an extra day of data corresponding with section 5.4 maybe?
+# use experiment 2 to figure this out
 def exp_1(scenario):
 
 	if "ex" in scenario.keys():
@@ -44,10 +46,36 @@ def exp_1(scenario):
 	return (ex_id, ex_co, ex_as, day)
 
 
-# numbers didn't match up, looks like there is an extra day of data corresponding with section 5.4
-# use experiment 2 to figure this out
+# EXPERIMENT 2
 # uses same function as 1, but sorts by day, later group sets together to see if we can find outlier day
 # run from a python terminal to combine different sets after run
+# RESULT: numbers still don't add up if you exclude any single day; going to email author about this
+
+
+# EXPERIMENT 3
+# count unique resolvers, resolvers with DO bit set
+# RUNNING
+def exp_3(scenario):
+
+	resolvers = set()
+	do_resolvers = set()
+
+	if "zones-requested" in scenario.keys():
+		for zone in scenario["zones-requested"].keys():
+			for rec_type in scenario["zones-requested"][zone].keys():
+				#try:
+				for entry in scenario["zones-requested"][zone][rec_type]:
+					resolvers.add(entry[0])
+					if entry[1]:
+						do_resolvers.add(entry[0])
+				#except:
+				#	print ("failed here")
+			    #	print (rec_type)
+				#	print (scenario)
+				#	import sys
+				#	sys.exit()
+
+	return (resolvers, do_resolvers)
 
 
 # run different tasks based on exp_list
@@ -73,6 +101,9 @@ def run_exp(exp_list):
 	day_set = set()
 	# exp_2
 	day_objects = {}
+	# exp_3
+	resolver_set = set()
+	do_resolver_set = set()
 
 	fin = open("../../data/dnssec-resolver.lz4", "r")
 
@@ -103,6 +134,11 @@ def run_exp(exp_list):
 
 			if 2 in exp_list:
 				return day_objects
+
+			if 3 in exp_list:
+				print ("exp_3 results")
+				print ("resolvers", len(resolver_set))
+				print ("DO resolvers", len(do_resolver_set))
 
 			break
 		
@@ -150,8 +186,15 @@ def run_exp(exp_list):
 						if new_ex_as is not None:
 							day_objects[new_day]["ex_as"].add(new_ex_as)
 
+					# run exp_3 functionality
+					if 3 in exp_list:
+						(new_resolvers, new_do_resolvers) = exp_3(scenario)
+						resolver_set = resolver_set.union(new_resolvers)
+						do_resolver_set = do_resolver_set.union(new_do_resolvers)
+
 					if counter % 10000 == 0:
 						print (counter)
+						print (len(resolver_set), len(do_resolver_set))
 						#print (scenario)
 
 					counter += 1
@@ -167,7 +210,7 @@ def run_exp(exp_list):
 if __name__ == "__main__":
 	
 	start_time = datetime.datetime.now()
-	#run_exp([1])
+	run_exp([3])
 	end_time = datetime.datetime.now()
 
 	print (start_time, end_time)
