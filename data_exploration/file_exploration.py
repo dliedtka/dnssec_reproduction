@@ -189,8 +189,10 @@ def run_exp(exp_list):
 					# run exp_3 functionality
 					if 3 in exp_list:
 						(new_resolvers, new_do_resolvers) = exp_3(scenario)
-						resolver_set = resolver_set.union(new_resolvers)
-						do_resolver_set = do_resolver_set.union(new_do_resolvers)
+						for item in new_resolvers:
+							resolver_set.add(item)
+						for item in new_do_resolvers:
+							do_resolver_set.add(item)
 
 					if counter % 10000 == 0:
 						print (counter)
