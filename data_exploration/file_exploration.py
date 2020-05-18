@@ -146,9 +146,9 @@ def run_exp(exp_list):
 						if new_ex_id is not None:
 							day_objects[new_day]["ex_id"].add(new_ex_id)
 						if new_ex_co is not None:
-							day_objects[new_day]["ex_co"]ex_co_set.add(new_ex_co)
+							day_objects[new_day]["ex_co"].add(new_ex_co)
 						if new_ex_as is not None:
-							day_objects[new_day]["ex_as"]ex_as_set.add(new_ex_as)
+							day_objects[new_day]["ex_as"].add(new_ex_as)
 
 					if counter % 10000 == 0:
 						print (counter)
