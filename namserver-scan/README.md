@@ -5,6 +5,12 @@ the usage of DNSSEC.
 In particular, check if it has a present DNSKEY and that the key can be
 verified by a present RRSIG.
 
+## WARNING
+
+LOOKS LIKE THERE IS A BUG IN THIS PROGRAM SO THAT IT BREAKS MY MAC TEMRINAL
+AFTER QUERYING FOR A LARGE NS. RUNNING ON A SMALL NAMESERVER LIKE `godaddy.com`
+IS FINE THOUGH
+
 ### Technologies:
 
 - dataset of domains that a name-server is authoritative for is not
@@ -14,7 +20,6 @@ using a free tier api
 module
 
 ### To Run
-
 
 TODO : make this more use interactive
 
