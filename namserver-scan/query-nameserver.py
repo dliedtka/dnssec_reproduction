@@ -14,8 +14,8 @@ import dns.resolver
 import dns.rdatatype
 from config import TOKEN
 
-NS = 'akam.net'# 'godaddy.com' # 'citynetwork.se'
-# NS = 'citynetwork.se'
+# NS = 'akam.net'# 'godaddy.com' # 'citynetwork.se'
+NS = 'citynetwork.se'
 # url for api calls to host.io
 URL = 'https://host.io/api/domains/ns/{}?limit={}&page={}&token={}'
 DIR_NAME = '{0}-scan'
@@ -185,7 +185,7 @@ def get_total_doms():
 
 '''
 merge summaries into a super summary
-'''
+''' 
 def merge_summaries(name_server, num_files):
     super_summary = {str(i): 0 for i in range(-3, 4)}
     for f in range(num_files):
@@ -204,6 +204,8 @@ def merge_summaries(name_server, num_files):
 verify each domain that points to name_server, as according to host.io
 done through writes to files, so that failure does not lose work
 '''
+# TODO allow this function to start at an arbitary page instead of 0
+# allows to use multiple access tokens over the same scan
 def verify_nameserver_domains(name_server, doms_per_query=1000, doms_per_thread=25, use_threads=True, verbose=False):
     tot = get_total_doms()
     total_queries = int((tot - 1) / doms_per_query) + 1
