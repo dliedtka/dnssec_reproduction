@@ -4,6 +4,7 @@ import requests # for sending api requests
 import threading # for threads
 import queue # for producer / consumer workload
 import time # for time info
+import queue
 import os # to create directories
 # import fileinput
 import dns.name
@@ -13,92 +14,31 @@ import dns.message
 import dns.resolver
 import dns.rdatatype
 from config import TOKEN
+# other files
+from verifications import verify_dnskey
+from verifications import verify_ds
+from verifications import verify_ds_and_dnskey
+from merge_summaries import merge_summaries
+from merge_summaries import write_parseable_summary
 
 # NS = 'akam.net'# 'godaddy.com' # 'citynetwork.se'
-NS = 'citynetwork.se'
+NS = 'name-s.net'#'binero.se' #'transip.nl' # 'transip.net' #'hyp.net' # 'loopia.se' # 'ovh.net'# 'pcextreme.ml' #'is.nl'# 'wix.com'
+
+VERIFICATION_MODE = 'DS_DNSKEY'
+VERIFICATION_MODES = {
+        'DNSKEY': verify_dnskey,
+        'DS': verify_ds,
+        'DS_DNSKEY': verify_ds_and_dnskey
+        }
 # url for api calls to host.io
 URL = 'https://host.io/api/domains/ns/{}?limit={}&page={}&token={}'
-DIR_NAME = '{0}-scan'
-INPUT_FILE = '{0}-scan/{0}-domains-{1}-input.txt'
-OUTPUT_FILE = '{0}-scan/{0}-domains-{1}-output.txt'
-SUMMARY_FILE = '{0}-scan/{0}-domains-{1}-summary.txt'
+DIR_NAME = '{}-'.format(VERIFICATION_MODE) + '{0}-scan'
+INPUT_FILE = '{}-'.format(VERIFICATION_MODE) + '{0}-scan/{0}-domains-{1}-input.txt'
+OUTPUT_FILE = '{}-'.format(VERIFICATION_MODE) + '{0}-scan/{0}-domains-{1}-output.txt'
+SUMMARY_FILE = '{}-'.format(VERIFICATION_MODE) + '{0}-scan/{0}-domains-{1}-summary.txt'
 
-LIMIT_ON_ACTIVE_THREADS = 60
+LIMIT_ON_ACTIVE_THREADS = 20
 
-# gets and validates the DNSKEY
-# returns:
-#   0 if query for DNSKEY fails
-#   1 if no DNSKEY RRSIG is returned and cannot validate
-#   2 if DNSKEY is returned and validated
-#   -1 if failed validation
-#   -2 some other error (domain/ nameserver wasn't resolved, ect)
-#   -3 timeout on dnssec query
-def verify_dnskey(domain, verbose=False, max_wait_time=2):
-    # get namserver for domain
-    if verbose:
-        print('domain scan of: {}'.format(domain))
-    res = None
-    try:
-        res = dns.resolver.query(domain, dns.rdatatype.NS)
-    except:
-        # Domain could not be resolved
-        return -2
-    nsname = res.rrset[0].to_text() # name
-    if verbose:
-        print('name of NS: {}'.format(nsname))
-    # find nameserver address
-    try:
-        res = dns.resolver.query(nsname, dns.rdatatype.A)
-    except:
-        return -2
-    nsaddr = res.rrset[0].to_text() # IPv4
-    if verbose:
-        print('NS address: {}'.format(nsaddr))
-    # get DNSKEY for zone
-    # corresponds to: 'dig +dnssec DNSKEY {domain}'
-    # note that dig on many websites including example.com
-    # does not succeed because the RRSIG for DNSKEY is not returned
-    req = dns.message.make_query(
-            domain,
-            dns.rdatatype.DNSKEY,
-            want_dnssec=True)
-    # send query
-    try:
-        res = dns.query.udp(req, nsaddr, timeout=max_wait_time)
-    except dns.exception.Timeout:
-        # timeout
-        return -3
-    except dns.message.TrailingJunk:
-        # malformed dns packet
-        return -3
-    except:
-        return -3
-
-    if res.rcode() != 0:
-        # query failed
-        return 0
-    # answer should be two RRSETS: DNSKEY and RRSIG (DNSKEY)
-    ans = res.answer
-    if len(ans) != 2:
-        # answer probably didn't respond with DNSKEY RRSIG
-        if len(ans) > 2:
-            return 3
-        else:
-            return len(ans)
-    # the DNSKEY should be self signed, validate it
-    name = dns.name.from_text(domain)
-    try:
-        dns.dnssec.validate(ans[0],ans[1], {name: ans[0]})
-    except dns.dnssec.ValidationFailure:
-        # failed validation
-        return -1
-    except AttributeError:
-        return -1
-    except:
-        -3
-    else:
-        # SUCCESS
-        return 2
 
 def format_summary(summary):
     return '''summary of results:
@@ -118,8 +58,6 @@ def format_summary(summary):
         too_many = summary[3],
         success = summary[2])
 
-def write_parseable_summary(summary):
-    return json.dumps(summary) + '\n'
 
 '''
 dig for DNS key of each domain specified in input_file,
@@ -138,7 +76,8 @@ record summary of results to summary_file
 this function is run through a thread, so as to parallelize the writes
 to files
 '''
-def verify_domains(name_server, thread_i, verbose=False, taciturn=False):
+def verify_domains(name_server, thread_i, verbose=False, taciturn=False, 
+        verification_mode=VERIFICATION_MODES[VERIFICATION_MODE]):
     input_file = INPUT_FILE.format(name_server, thread_i)
     output_file = OUTPUT_FILE.format(name_server, thread_i)
     summary_file = SUMMARY_FILE.format(name_server, thread_i)
@@ -150,7 +89,7 @@ def verify_domains(name_server, thread_i, verbose=False, taciturn=False):
         with open(input_file, 'r') as f_in:
             for dom in f_in:
                 dom = dom[:-1] # remove newline
-                dnssec_res = verify_dnskey(dom)
+                dnssec_res = verification_mode(dom)
                 summary[dnssec_res] += 1
                 f_out.write('{} {}\n'.format(dom, dnssec_res))
                 count += 1
@@ -183,22 +122,6 @@ def get_total_doms():
     res = json.loads(res.content.decode('utf-8'))
     return res['total']
 
-'''
-merge summaries into a super summary
-''' 
-def merge_summaries(name_server, num_files):
-    super_summary = {str(i): 0 for i in range(-3, 4)}
-    for f in range(num_files):
-        with open(SUMMARY_FILE.format(name_server, f), 'r') as f_sum:
-            f_sum.seek(0)
-            summary = json.loads(f_sum.readline()[:-1]) # TODO fix this to load integers intead of strings
-            for i in range(-3, 4):
-                super_summary[str(i)] += summary[str(i)]
-        f_sum.close()
-    with open(SUMMARY_FILE.format(name_server, '-1'), 'w') as f_super:
-        f_super.write(write_parseable_summary(super_summary))
-    f_super.close() 
-    print(super_summary)
 
 '''
 verify each domain that points to name_server, as according to host.io
@@ -206,14 +129,16 @@ done through writes to files, so that failure does not lose work
 '''
 # TODO allow this function to start at an arbitary page instead of 0
 # allows to use multiple access tokens over the same scan
-def verify_nameserver_domains(name_server, doms_per_query=1000, doms_per_thread=25, use_threads=True, verbose=False):
+def verify_nameserver_domains(name_server, 
+        doms_per_query=1000, doms_per_thread=25, starting_page=0,
+        use_threads=True, verbose=False):
     tot = get_total_doms()
     total_queries = int((tot - 1) / doms_per_query) + 1
-    threads = []
+    threads  = []
     start_time = time.time()
     if verbose:
         print('\n +=+=+=+=+=+ STARTING NAMESERVER SCAN of {} +=+=+=+=+=+ \n'.format(name_server))
-    for query_i in range(total_queries):
+    for query_i in range(starting_page, total_queries):
         res = requests.get(URL.format(name_server, doms_per_query, query_i, TOKEN))
         if (res.status_code != 200):
             raise ValueError('status code {} returned from request for query'.format(res.status_code, query_i))
@@ -243,6 +168,7 @@ def verify_nameserver_domains(name_server, doms_per_query=1000, doms_per_thread=
             threads[-1].start()
             if not use_threads:
                 threads[-1].join()
+            # TODO this should have been implemented with a master slave threading style
             if threading.active_count() >= LIMIT_ON_ACTIVE_THREADS:
                 for t in threads:
                     t.join()
@@ -254,7 +180,7 @@ def verify_nameserver_domains(name_server, doms_per_query=1000, doms_per_thread=
     if verbose:
         print('\n +=+=+=+=+=+ STARTING MERGE of SUMMARIES for {} +=+=+=+=+=+ \n'.format(name_server))
     number_of_files = int(tot / doms_per_thread)
-    merge_summaries(name_server, number_of_files)
+    merge_summaries(name_server, number_of_files, SUMMARY_FILE)
 
 if __name__=='__main__':
     try:

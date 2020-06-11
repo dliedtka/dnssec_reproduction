@@ -9,3 +9,5 @@ test:
 	rm -rf $(TEST-FOLDER)
 	python query-nameserver.py 
 
+move:
+	cp DS_DNSKEY-*-scan/*--1-summary.txt ./analysis/results_DS_DNSKEY
